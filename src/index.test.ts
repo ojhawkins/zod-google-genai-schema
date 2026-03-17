@@ -87,6 +87,66 @@ describe("zodToGenAISchema", () => {
     expect(converted.anyOf).toHaveLength(2);
   });
 
+  it("converts customer action discriminated union schema", () => {
+    const schema = z.discriminatedUnion("action", [
+      z
+        .object({
+          action: z.literal("create"),
+          name: z.string().min(1),
+          email: z.email().optional(),
+          phone: z.string().min(1).optional(),
+          address: z.string().min(1).optional(),
+          notes: z.string().min(1).optional(),
+        })
+        .strict(),
+      z
+        .object({
+          action: z.literal("update"),
+          customerId: z.string().min(1),
+          name: z.string().min(1).optional(),
+          email: z.email().optional(),
+          phone: z.string().min(1).optional(),
+          address: z.string().min(1).optional(),
+          notes: z.string().min(1).optional(),
+        })
+        .strict(),
+    ]);
+
+    const converted = zodToGenAISchema(schema);
+    const variants = converted.anyOf ?? [];
+
+    expect(variants).toHaveLength(2);
+
+    expect(variants[0]).toEqual({
+      type: Type.OBJECT,
+      properties: {
+        action: { type: Type.STRING, enum: ["create"], description: undefined },
+        name: { type: Type.STRING, description: undefined },
+        email: { type: Type.STRING, format: "email", description: undefined },
+        phone: { type: Type.STRING, description: undefined },
+        address: { type: Type.STRING, description: undefined },
+        notes: { type: Type.STRING, description: undefined },
+      },
+      required: ["action", "name"],
+      description: undefined,
+    });
+
+    expect(variants[1]).toEqual({
+      type: Type.OBJECT,
+      properties: {
+        action: { type: Type.STRING, enum: ["update"], description: undefined },
+        customerId: { type: Type.STRING, description: undefined },
+        name: { type: Type.STRING, description: undefined },
+        email: { type: Type.STRING, format: "email", description: undefined },
+        phone: { type: Type.STRING, description: undefined },
+        address: { type: Type.STRING, description: undefined },
+        notes: { type: Type.STRING, description: undefined },
+      },
+      required: ["action", "customerId"],
+      description: undefined,
+    });
+  });
+
   it("converts plain unions to anyOf", () => {
     const schema = z.union([z.string(), z.number()]);
     const converted = zodToGenAISchema(schema);

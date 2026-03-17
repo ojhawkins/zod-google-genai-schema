@@ -20,6 +20,14 @@ export function genAIToZodSchema(schema: Schema): ZodSchema {
 }
 
 function toGoogleSchema(schema: ZodSchema): Schema {
+  if (isZodEmailSchema(schema)) {
+    return {
+      type: Type.STRING,
+      format: "email",
+      description: schema.description,
+    };
+  }
+
   if (schema instanceof z.ZodString) {
     return {
       type: Type.STRING,
@@ -326,4 +334,10 @@ function unwrapNullable(schema: z.ZodNullable<any>): ZodSchema {
 
 function unwrapWithInternal(schema: ZodSchema): ZodSchema {
   return (schema as any).unwrap() as ZodSchema;
+}
+
+function isZodEmailSchema(schema: ZodSchema): boolean {
+  const internalDef = (schema as any)?._zod?.def;
+  const format = internalDef?.format;
+  return format === "email";
 }
