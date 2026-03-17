@@ -1,6 +1,6 @@
 {
   "name": "zod-google-genai-schema",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Convert schemas between Zod and @google/genai Schema format.",
   "keywords": [
     "zod",
@@ -43,7 +43,7 @@
     "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
-    "@google/genai": ">=1.40.0 <2",
+    "@google/genai": ">=1.0.0 <2",
     "zod": "^4.0.0"
   },
   "devDependencies": {
