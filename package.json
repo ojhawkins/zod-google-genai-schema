@@ -1,6 +1,26 @@
 {
   "name": "zod-google-genai-schema",
   "version": "0.1.0",
+  "description": "Convert schemas between Zod and @google/genai Schema format.",
+  "keywords": [
+    "zod",
+    "google-genai",
+    "schema",
+    "typescript",
+    "validation",
+    "llm",
+    "function-calling"
+  ],
+  "license": "MIT",
+  "author": "Owain",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ojhawkins/zod-google-genai-schema.git"
+  },
+  "homepage": "https://github.com/ojhawkins/zod-google-genai-schema#readme",
+  "bugs": {
+    "url": "https://github.com/ojhawkins/zod-google-genai-schema/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
