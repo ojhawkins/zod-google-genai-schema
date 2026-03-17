@@ -1,6 +1,6 @@
 {
   "name": "zod-google-genai-schema",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Convert schemas between Zod and @google/genai Schema format.",
   "keywords": [
     "zod",
