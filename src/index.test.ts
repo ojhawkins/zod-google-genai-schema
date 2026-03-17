@@ -23,6 +23,32 @@ describe("zodToGenAISchema", () => {
     });
   });
 
+  it("converts string constraints to GenAI schema fields", () => {
+    const converted = zodToGenAISchema(
+      z.string().min(2).max(5).regex(/^[a-z]+$/).email(),
+    );
+
+    expect(converted).toEqual({
+      type: Type.STRING,
+      minLength: "2",
+      maxLength: "5",
+      pattern: "^[a-z]+$",
+      format: "email",
+      description: undefined,
+    });
+  });
+
+  it("converts number constraints and integer format", () => {
+    const converted = zodToGenAISchema(z.number().min(1).max(10).int());
+
+    expect(converted).toEqual({
+      type: Type.INTEGER,
+      minimum: 1,
+      maximum: 10,
+      description: undefined,
+    });
+  });
+
   it("converts object shape and required fields", () => {
     const schema = z.object({
       name: z.string(),
@@ -113,36 +139,38 @@ describe("zodToGenAISchema", () => {
     ]);
 
     const converted = zodToGenAISchema(schema);
-    const variants = converted.anyOf ?? [];
 
-    expect(variants).toHaveLength(2);
 
-    expect(variants[0]).toEqual({
-      type: Type.OBJECT,
-      properties: {
-        action: { type: Type.STRING, enum: ["create"], description: undefined },
-        name: { type: Type.STRING, description: undefined },
-        email: { type: Type.STRING, format: "email", description: undefined },
-        phone: { type: Type.STRING, description: undefined },
-        address: { type: Type.STRING, description: undefined },
-        notes: { type: Type.STRING, description: undefined },
-      },
-      required: ["action", "name"],
-      description: undefined,
-    });
-
-    expect(variants[1]).toEqual({
-      type: Type.OBJECT,
-      properties: {
-        action: { type: Type.STRING, enum: ["update"], description: undefined },
-        customerId: { type: Type.STRING, description: undefined },
-        name: { type: Type.STRING, description: undefined },
-        email: { type: Type.STRING, format: "email", description: undefined },
-        phone: { type: Type.STRING, description: undefined },
-        address: { type: Type.STRING, description: undefined },
-        notes: { type: Type.STRING, description: undefined },
-      },
-      required: ["action", "customerId"],
+    expect(converted).toEqual({
+      anyOf: [
+        {
+          type: Type.OBJECT,
+          properties: {
+            action: { type: Type.STRING, enum: ["create"], description: undefined },
+            name: { type: Type.STRING, minLength: "1", description: undefined },
+            email: { type: Type.STRING, format: "email", description: undefined },
+            phone: { type: Type.STRING, minLength: "1", description: undefined },
+            address: { type: Type.STRING, minLength: "1", description: undefined },
+            notes: { type: Type.STRING, minLength: "1", description: undefined },
+          },
+          required: ["action", "name"],
+          description: undefined,
+        },
+        {
+          type: Type.OBJECT,
+          properties: {
+            action: { type: Type.STRING, enum: ["update"], description: undefined },
+            customerId: { type: Type.STRING, minLength: "1", description: undefined },
+            name: { type: Type.STRING, minLength: "1", description: undefined },
+            email: { type: Type.STRING, format: "email", description: undefined },
+            phone: { type: Type.STRING, minLength: "1", description: undefined },
+            address: { type: Type.STRING, minLength: "1", description: undefined },
+            notes: { type: Type.STRING, minLength: "1", description: undefined },
+          },
+          required: ["action", "customerId"],
+          description: undefined,
+        },
+      ],
       description: undefined,
     });
   });

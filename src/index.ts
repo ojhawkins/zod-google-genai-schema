@@ -20,26 +20,12 @@ export function genAIToZodSchema(schema: Schema): ZodSchema {
 }
 
 function toGoogleSchema(schema: ZodSchema): Schema {
-  if (isZodEmailSchema(schema)) {
-    return {
-      type: Type.STRING,
-      format: "email",
-      description: schema.description,
-    };
-  }
-
-  if (schema instanceof z.ZodString) {
-    return {
-      type: Type.STRING,
-      description: schema.description,
-    };
+  if (schema instanceof z.ZodString || isZodEmailSchema(schema)) {
+    return toGoogleStringSchema(schema);
   }
 
   if (schema instanceof z.ZodNumber) {
-    return {
-      type: Type.NUMBER,
-      description: schema.description,
-    };
+    return toGoogleNumberSchema(schema);
   }
 
   if (schema instanceof z.ZodBoolean) {
@@ -340,4 +326,117 @@ function isZodEmailSchema(schema: ZodSchema): boolean {
   const internalDef = (schema as any)?._zod?.def;
   const format = internalDef?.format;
   return format === "email";
+}
+
+function toGoogleStringSchema(schema: ZodSchema): Schema {
+  const constraints = getStringConstraints(schema);
+  const result: Schema = {
+    type: Type.STRING,
+    description: schema.description,
+  };
+  if (constraints.minLength !== undefined) {
+    result.minLength = constraints.minLength;
+  }
+  if (constraints.maxLength !== undefined) {
+    result.maxLength = constraints.maxLength;
+  }
+  if (constraints.pattern !== undefined) {
+    result.pattern = constraints.pattern;
+  }
+  if (constraints.format !== undefined) {
+    result.format = constraints.format;
+  }
+  return result;
+}
+
+function toGoogleNumberSchema(schema: z.ZodNumber): Schema {
+  const constraints = getNumberConstraints(schema);
+  const result: Schema = {
+    type: constraints.integer ? Type.INTEGER : Type.NUMBER,
+    description: schema.description,
+  };
+  if (constraints.minimum !== undefined) {
+    result.minimum = constraints.minimum;
+  }
+  if (constraints.maximum !== undefined) {
+    result.maximum = constraints.maximum;
+  }
+  return result;
+}
+
+function getStringConstraints(schema: ZodSchema): {
+  minLength?: string;
+  maxLength?: string;
+  pattern?: string;
+  format?: "email";
+} {
+  let minLength: string | undefined;
+  let maxLength: string | undefined;
+  let pattern: string | undefined;
+  let format: "email" | undefined;
+
+  for (const check of getZodChecks(schema)) {
+    const def = (check as any)?._zod?.def;
+    if (!def) {
+      continue;
+    }
+
+    if (def.check === "min_length" && typeof def.minimum === "number") {
+      minLength = String(def.minimum);
+      continue;
+    }
+    if (def.check === "max_length" && typeof def.maximum === "number") {
+      maxLength = String(def.maximum);
+      continue;
+    }
+    if (def.check === "string_format" && def.format === "regex" && def.pattern instanceof RegExp) {
+      pattern = def.pattern.source;
+      continue;
+    }
+    if (def.check === "string_format" && def.format === "email") {
+      format = "email";
+    }
+  }
+
+  if (!format && isZodEmailSchema(schema)) {
+    format = "email";
+  }
+
+  return { minLength, maxLength, pattern, format };
+}
+
+function getNumberConstraints(schema: z.ZodNumber): {
+  minimum?: number;
+  maximum?: number;
+  integer: boolean;
+} {
+  let minimum: number | undefined;
+  let maximum: number | undefined;
+  let integer = false;
+
+  for (const check of getZodChecks(schema)) {
+    const def = (check as any)?._zod?.def;
+    if (!def) {
+      continue;
+    }
+
+    if (def.check === "greater_than" && def.inclusive === true && typeof def.value === "number") {
+      minimum = def.value;
+      continue;
+    }
+    if (def.check === "less_than" && def.inclusive === true && typeof def.value === "number") {
+      maximum = def.value;
+      continue;
+    }
+    if (def.check === "number_format" && (check as any).isInt === true) {
+      integer = true;
+    }
+  }
+
+  return { minimum, maximum, integer };
+}
+
+function getZodChecks(schema: ZodSchema): unknown[] {
+  const checks = (schema as any)?._zod?.def?.checks;
+  return Array.isArray(checks) ? checks : [];
 }
