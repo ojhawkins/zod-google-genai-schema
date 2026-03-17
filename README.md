@@ -7,10 +7,14 @@ Useful when you want to define validation in Zod and reuse it for Google GenAI t
 ## Installation
 
 ```bash
-npm install zod-google-genai-schema zod @google/genai
+npm install zod-google-genai-schema
 ```
 
-`zod` and `@google/genai` are peer dependencies and should be installed in your app.
+`zod` and `@google/genai` are peer dependencies. If they are not already in your app, install them with:
+
+```bash
+npm install zod @google/genai
+```
 
 ## Usage
 
