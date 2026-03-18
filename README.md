@@ -56,6 +56,7 @@ zodSchema.parse({ action: "create" });
 ### `zodToGenAISchema(schema)`
 
 Converts a Zod schema into a Google GenAI `Schema`.
+`z.discriminatedUnion(...)` is intentionally not supported and throws an error. `z.union(...)` is supported for nested properties (`anyOf`), but top-level `anyOf` output is rejected. For top-level parameters, provide a merged object schema.
 
 ### `genAIToZodSchema(schema)`
 

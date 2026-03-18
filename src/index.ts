@@ -6,6 +6,11 @@ export type ZodSchema = z.ZodTypeAny;
 export function zodToGenAISchema(schema: ZodSchema): Schema {
   const normalized = unwrapWrappers(schema);
   const result = toGoogleSchema(normalized);
+  if (result.anyOf) {
+    throw new Error(
+      "Top-level anyOf is not supported. Use a merged object schema for top-level parameters.",
+    );
+  }
 
   if (schema.description && !result.description) {
     result.description = schema.description;
@@ -62,18 +67,15 @@ function toGoogleSchema(schema: ZodSchema): Schema {
     }
   }
 
+  if (schema instanceof z.ZodDiscriminatedUnion) {
+    throw new Error(
+      "z.discriminatedUnion() is not supported. Provide a merged object schema.",
+    );
+  }
+
   if (schema instanceof z.ZodUnion) {
     return {
       anyOf: getUnionOptions(schema).map((option) => toGoogleSchema(option)),
-      description: schema.description,
-    };
-  }
-
-  if (schema instanceof z.ZodDiscriminatedUnion) {
-    return {
-      anyOf: getDiscriminatedUnionOptions(schema).map((option) =>
-        toGoogleSchema(option),
-      ),
       description: schema.description,
     };
   }
@@ -126,7 +128,13 @@ function unwrapOptionalLike(schema: ZodSchema): ZodSchema {
 }
 
 function toZodBaseSchema(schema: Schema): ZodSchema {
-  if (schema.anyOf?.length) {
+  if (schema.anyOf) {
+    if (schema.anyOf.length === 0) {
+      return z.unknown();
+    }
+    if (schema.anyOf.length === 1) {
+      return genAIToZodSchema(schema.anyOf[0]!);
+    }
     return z.union(
       schema.anyOf.map((child) => genAIToZodSchema(child)) as [
         ZodSchema,
@@ -301,17 +309,6 @@ function getLiteralValue(schema: z.ZodLiteral<any>): unknown {
 
 function getUnionOptions(schema: z.ZodUnion<any>): ZodSchema[] {
   return (((schema as any).options as unknown[]) ?? []) as ZodSchema[];
-}
-
-function getDiscriminatedUnionOptions(schema: ZodSchema): ZodSchema[] {
-  const options = (schema as any).options;
-  if (Array.isArray(options)) {
-    return options as ZodSchema[];
-  }
-  if (options && typeof options.values === "function") {
-    return Array.from(options.values()) as ZodSchema[];
-  }
-  return [];
 }
 
 function unwrapNullable(schema: z.ZodNullable<any>): ZodSchema {

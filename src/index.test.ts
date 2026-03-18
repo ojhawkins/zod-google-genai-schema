@@ -95,7 +95,7 @@ describe("zodToGenAISchema", () => {
     });
   });
 
-  it("converts discriminated unions to anyOf", () => {
+  it("rejects discriminated unions", () => {
     const schema = z.discriminatedUnion("kind", [
       z.object({
         kind: z.literal("create"),
@@ -107,13 +107,12 @@ describe("zodToGenAISchema", () => {
       }),
     ]);
 
-    const converted = zodToGenAISchema(schema);
-
-    expect(converted.anyOf).toBeDefined();
-    expect(converted.anyOf).toHaveLength(2);
+    expect(() => zodToGenAISchema(schema)).toThrow(
+      "z.discriminatedUnion() is not supported",
+    );
   });
 
-  it("converts customer action discriminated union schema", () => {
+  it("rejects customer action discriminated union schema", () => {
     const schema = z.discriminatedUnion("action", [
       z
         .object({
@@ -138,51 +137,36 @@ describe("zodToGenAISchema", () => {
         .strict(),
     ]);
 
+    expect(() => zodToGenAISchema(schema)).toThrow(
+      "z.discriminatedUnion() is not supported",
+    );
+  });
+
+  it("rejects top-level plain unions", () => {
+    const schema = z.union([z.string(), z.number()]);
+    expect(() => zodToGenAISchema(schema)).toThrow(
+      "Top-level anyOf is not supported",
+    );
+  });
+
+  it("allows nested unions as anyOf within object properties", () => {
+    const schema = z.object({
+      location: z.string(),
+      country: z.union([z.string(), z.null()]),
+    });
+
     const converted = zodToGenAISchema(schema);
+    const properties = converted.properties ?? {};
 
-
-    expect(converted).toEqual({
+    expect(properties.country).toEqual({
       anyOf: [
-        {
-          type: Type.OBJECT,
-          properties: {
-            action: { type: Type.STRING, enum: ["create"], description: undefined },
-            name: { type: Type.STRING, minLength: "1", description: undefined },
-            email: { type: Type.STRING, format: "email", description: undefined },
-            phone: { type: Type.STRING, minLength: "1", description: undefined },
-            address: { type: Type.STRING, minLength: "1", description: undefined },
-            notes: { type: Type.STRING, minLength: "1", description: undefined },
-          },
-          required: ["action", "name"],
-          description: undefined,
-        },
-        {
-          type: Type.OBJECT,
-          properties: {
-            action: { type: Type.STRING, enum: ["update"], description: undefined },
-            customerId: { type: Type.STRING, minLength: "1", description: undefined },
-            name: { type: Type.STRING, minLength: "1", description: undefined },
-            email: { type: Type.STRING, format: "email", description: undefined },
-            phone: { type: Type.STRING, minLength: "1", description: undefined },
-            address: { type: Type.STRING, minLength: "1", description: undefined },
-            notes: { type: Type.STRING, minLength: "1", description: undefined },
-          },
-          required: ["action", "customerId"],
-          description: undefined,
-        },
+        { type: Type.STRING, description: undefined },
+        { type: Type.NULL, description: undefined },
       ],
       description: undefined,
     });
-  });
-
-  it("converts plain unions to anyOf", () => {
-    const schema = z.union([z.string(), z.number()]);
-    const converted = zodToGenAISchema(schema);
-
-    expect(converted.anyOf).toEqual([
-      { type: Type.STRING, description: undefined },
-      { type: Type.NUMBER, description: undefined },
-    ]);
+    expect(converted.type).toBe(Type.OBJECT);
+    expect(converted.required).toEqual(["location", "country"]);
   });
 
   it("treats default fields as optional for object required keys", () => {
@@ -280,6 +264,25 @@ describe("genAIToZodSchema", () => {
     expect(converted.safeParse({ mode: "search" }).success).toBe(false);
   });
 
+  it("handles anyOf with a single schema", () => {
+    const schema: Schema = {
+      anyOf: [{ type: Type.STRING, minLength: "2" }],
+    };
+
+    const converted = genAIToZodSchema(schema);
+
+    expect(converted.safeParse("ab").success).toBe(true);
+    expect(converted.safeParse("a").success).toBe(false);
+  });
+
+  it("handles empty anyOf safely", () => {
+    const schema: Schema = { anyOf: [] };
+    const converted = genAIToZodSchema(schema);
+
+    expect(converted.safeParse("anything").success).toBe(true);
+    expect(converted.safeParse({ x: 1 }).success).toBe(true);
+  });
+
   it("supports boolean, null, and constrained arrays", () => {
     const boolSchema = genAIToZodSchema({ type: Type.BOOLEAN });
     expect(boolSchema.safeParse(true).success).toBe(true);
@@ -341,12 +344,4 @@ describe("round-trip coverage", () => {
     expect(roundTripped.safeParse({ tags: ["x"] }).success).toBe(false);
   });
 
-  it("round-trips union schemas", () => {
-    const original = z.union([z.string(), z.number()]);
-    const roundTripped = genAIToZodSchema(zodToGenAISchema(original));
-
-    expect(roundTripped.safeParse("ok").success).toBe(true);
-    expect(roundTripped.safeParse(42).success).toBe(true);
-    expect(roundTripped.safeParse(true).success).toBe(false);
-  });
 });
